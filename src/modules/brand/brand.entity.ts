@@ -4,7 +4,7 @@ import {
   Default,
   Model,
   PrimaryKey,
-  Table,
+  Table
 } from 'sequelize-typescript';
 
 @Table({
