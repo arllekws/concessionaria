@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { User } from './user.entity';
 import { InjectModel } from '@nestjs/sequelize';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
+import { hashSync as bcryptHashSync } from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -20,7 +23,10 @@ export class UserService {
       throw new HttpException("Esse email já está em uso", HttpStatus.BAD_REQUEST)
     }
 
-    const createdUser = await this.userModel.create(user)
+    const createdUser = await this.userModel.create({
+      ...user,
+      password: bcryptHashSync(user.password, 10),
+    });
 
     return createdUser
   }
@@ -30,15 +36,35 @@ export class UserService {
   }
 
   async update(id: string, user: UpdateUserDto) {
-    const UpdateUser = await this.userModel.update(
+    
+    if (user.email) {
+      await this.validateEmail(user.email)
+    }
+
+    const updatedUser = await this.userModel.update(
       { ...user },
-      {
-        where: {
-          user_id: id,
-        },
-        returning: true,
-      }
+      { where: { user_id: id }, returning: true },
     );
-    return UpdateUser[1][0];
+
+    return updatedUser[1][0]
+  }
+
+  async validateEmail(email: string) {
+    const emailAlreadyExists = await this.userModel.findOne({
+      where: { email: email },
+    });
+
+    if (emailAlreadyExists) {
+      throw new HttpException("Esse email já está em uso", HttpStatus.BAD_REQUEST)
+    }
+
+    return true
+  }
+
+  async findByUserName(username: string){
+    const user = await this.userModel.findOne({
+      where: { username : username}
+    });
+    return user;
   }
 }
